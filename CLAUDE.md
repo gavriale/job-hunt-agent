@@ -5,7 +5,7 @@ An autonomous job hunting agent delivered via Telegram bot.
 Built by @gavriale — Backend Engineer who just relocated to Israel.
 
 The bot does two things:
-1. **Proactively** polls LinkedIn RSS every 3 hours, scores relevance via Claude, and pushes only matching jobs to Telegram
+1. **Proactively** polls Indeed RSS + Secret Tel Aviv Jobs every 3 hours, scores relevance via Claude, and pushes only matching jobs to Telegram
 2. **Reactively** — user pastes any job URL into Telegram, bot fetches the page, Claude extracts and scores it, returns a decision-ready summary
 
 ---
@@ -24,18 +24,15 @@ The bot does two things:
 
 | Source | Method |
 |---|---|
-| LinkedIn | RSS feed polled every 3 hours |
+| Secret Tel Aviv Jobs | RSS feed polled every 3 hours (`https://jobs.secrettelaviv.com/feed/`) |
+| RemoteOK | RSS feeds polled every 3 hours (backend, python, AI categories) |
 | Any job URL | User pastes link into Telegram → bot fetches → Claude enriches |
 
-### LinkedIn RSS URL
-```
-https://www.linkedin.com/jobs/search/?keywords=backend+engineer&location=Israel&f_TPR=r10800&sortBy=DD
-```
-Use multiple RSS queries for coverage:
-- `backend engineer israel`
-- `python developer tel aviv`
-- `ai engineer israel`
-- `software engineer tel aviv`
+### Notes on sources
+- **LinkedIn RSS** — killed by LinkedIn, no longer works
+- **Indeed RSS** — blocked (403/404), no longer accessible
+- **Secret Tel Aviv** — live WordPress RSS, updated hourly, English-speaking Israel market
+- **RemoteOK** — live RSS, remote roles worldwide; Claude's relevance scorer filters for fit
 
 ---
 
@@ -73,7 +70,7 @@ job-hunt-agent/
 │   ├── handlers.py          # /start, /pipeline, /prep, /quiz, URL paste handler
 │   └── scheduler.py         # APScheduler — polls RSS every 3 hours
 ├── sources/
-│   ├── rss_linkedin.py      # Fetches + parses LinkedIn RSS feeds
+│   ├── rss_feeds.py         # Fetches + parses Indeed + Secret Tel Aviv RSS feeds
 │   └── link_enricher.py     # Fetches job URL, sends to Claude, returns summary
 ├── agent/
 │   ├── relevance.py         # Claude scores job fit against candidate profile

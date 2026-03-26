@@ -3,7 +3,7 @@ import requests
 from dataclasses import dataclass
 from typing import List
 
-from config import LINKEDIN_RSS_FEEDS
+from config import RSS_FEEDS
 from db.database import is_job_seen, mark_job_seen
 
 
@@ -16,8 +16,25 @@ class Job:
     summary: str
 
 
+def _extract_title_company(raw_title: str):
+    """
+    Best-effort extraction of job title and company from an RSS entry title.
+    Handles multiple formats:
+      - "Title at Company"  (LinkedIn-style)
+      - "Title - Company"   (Indeed-style)
+      - "Title"             (WordPress / Secret Tel Aviv — company in summary)
+    """
+    if " at " in raw_title:
+        parts = raw_title.split(" at ", 1)
+        return parts[0].strip(), parts[1].strip()
+    if " - " in raw_title:
+        parts = raw_title.rsplit(" - ", 1)
+        return parts[0].strip(), parts[1].strip()
+    return raw_title.strip(), ""
+
+
 def _parse_feed(feed_url: str) -> List[Job]:
-    """Fetch and parse a single LinkedIn RSS feed URL."""
+    """Fetch and parse a single RSS feed URL."""
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -37,15 +54,12 @@ def _parse_feed(feed_url: str) -> List[Job]:
 
     for entry in feed.entries:
         url = entry.get("link", "").strip()
-        title = entry.get("title", "").strip()
+        raw_title = entry.get("title", "").strip()
         summary = entry.get("summary", "").strip()
 
-        company = ""
+        title, company = _extract_title_company(raw_title)
+
         location = ""
-        if " at " in title:
-            parts = title.split(" at ", 1)
-            title = parts[0].strip()
-            company = parts[1].strip()
         if hasattr(entry, "location"):
             location = entry.location
 
@@ -57,20 +71,20 @@ def _parse_feed(feed_url: str) -> List[Job]:
 
 def fetch_new_jobs() -> List[Job]:
     """
-    Poll all configured LinkedIn RSS feeds.
+    Poll all configured RSS feeds.
     Returns only jobs not yet seen (deduped via DB).
     Marks new jobs as seen before returning.
     """
     new_jobs = []
 
-    for feed_url in LINKEDIN_RSS_FEEDS:
+    for feed_url in RSS_FEEDS:
         jobs = _parse_feed(feed_url)
         for job in jobs:
             if not is_job_seen(job.url):
                 mark_job_seen(job.url, title=job.title, company=job.company)
                 new_jobs.append(job)
 
-    print(f"[RSS] Found {len(new_jobs)} new jobs across {len(LINKEDIN_RSS_FEEDS)} feeds.")
+    print(f"[RSS] Found {len(new_jobs)} new jobs across {len(RSS_FEEDS)} feeds.")
     return new_jobs
 
 
@@ -79,4 +93,4 @@ if __name__ == "__main__":
     init_db()
     jobs = fetch_new_jobs()
     for job in jobs:
-        print(f"  - {job.title} @ {job.company} | {job.url[:60]}")
+        print(f"  - {job.title} @ {job.company} | {job.url[:80]}")

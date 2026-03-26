@@ -19,11 +19,13 @@ Skills: Python, backend systems, APIs, databases
 Strong interest in: AI/ML engineering roles
 """
 
-LINKEDIN_RSS_FEEDS = [
-    "https://www.linkedin.com/jobs/search/?keywords=backend+engineer&location=Israel&f_TPR=r10800&sortBy=DD",
-    "https://www.linkedin.com/jobs/search/?keywords=python+developer&location=Tel+Aviv&f_TPR=r10800&sortBy=DD",
-    "https://www.linkedin.com/jobs/search/?keywords=ai+engineer&location=Israel&f_TPR=r10800&sortBy=DD",
-    "https://www.linkedin.com/jobs/search/?keywords=software+engineer&location=Tel+Aviv&f_TPR=r10800&sortBy=DD",
+RSS_FEEDS = [
+    # Secret Tel Aviv Jobs — Israel-focused, English-speaking market
+    "https://jobs.secrettelaviv.com/feed/",
+    # RemoteOK — remote roles (backend, Python, AI); Claude filters for relevance
+    "https://remoteok.com/remote-backend-jobs.rss",
+    "https://remoteok.com/remote-python-jobs.rss",
+    "https://remoteok.com/remote-ai-jobs.rss",
 ]
 
 RSS_POLL_INTERVAL_HOURS = 3

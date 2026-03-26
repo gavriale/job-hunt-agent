@@ -6,7 +6,7 @@ from telegram import Bot
 
 from config import RSS_POLL_INTERVAL_HOURS, DAILY_TIP_HOUR, FOLLOW_UP_DAYS
 from db.database import init_db, get_stale_applications
-from sources.rss_linkedin import fetch_new_jobs
+from sources.rss_feeds import fetch_new_jobs
 from agent.relevance import score_job, format_job_alert
 
 logger = logging.getLogger(__name__)
