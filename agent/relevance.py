@@ -2,7 +2,7 @@ import anthropic
 
 from config import ANTHROPIC_API_KEY, CANDIDATE_PROFILE, MAX_DAILY_TOKENS
 from db.database import get_tokens_used_today, increment_token_usage
-from sources.rss_linkedin import Job
+from sources.rss_feeds import Job
 
 
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
@@ -85,7 +85,7 @@ def format_job_alert(job: Job, score_result: dict) -> str:
 
 if __name__ == "__main__":
     from db.database import init_db
-    from sources.rss_linkedin import Job
+    from sources.rss_feeds import Job
 
     init_db()
     # Smoke test with a fake job
