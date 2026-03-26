@@ -8,38 +8,75 @@ from telegram import Bot
 from config import RSS_POLL_INTERVAL_HOURS, DAILY_TIP_HOUR, FOLLOW_UP_DAYS
 from db.database import init_db, get_stale_applications
 from sources.rss_feeds import fetch_new_jobs
-from agent.relevance import score_job, format_job_alert
 
 logger = logging.getLogger(__name__)
 
+# Keywords that suggest a relevant role
+INCLUDE_KEYWORDS = [
+    "backend", "back-end", "back end",
+    "python", "software engineer", "software developer",
+    "full stack", "fullstack", "full-stack",
+    "ai engineer", "ml engineer", "machine learning",
+    "platform engineer", "infrastructure engineer",
+    "api", "node", "django", "fastapi", "flask",
+]
 
-async def poll_rss_and_notify(bot: Bot, chat_id: int):
-    """Fetch new jobs from RSS, score each, push matches to Telegram."""
-    logger.info("[Scheduler] Polling RSS feeds...")
+# Keywords that disqualify a role immediately
+EXCLUDE_KEYWORDS = [
+    "frontend", "front-end", "front end",
+    "qa ", "quality assurance", "test engineer",
+    "devops", "sre ", "site reliability",
+    "designer", "ux ", "ui ", "graphic",
+    "marketing", "sales", "hr ", "recruiter",
+    "finance", "accounting", "legal", "analyst",
+    "data analyst", "business analyst",
+]
+
+
+def _is_relevant(title: str) -> bool:
+    t = title.lower()
+    if any(kw in t for kw in EXCLUDE_KEYWORDS):
+        return False
+    return any(kw in t for kw in INCLUDE_KEYWORDS)
+
+
+def _format_job_alert(job) -> str:
+    return (
+        f"💼 *{job.title}*\n"
+        f"🏢 {job.company}\n"
+        f"📍 {job.location}\n"
+        f"🔗 [View Job]({job.url})\n\n"
+        f"_Paste the URL for a full Claude analysis._"
+    )
+
+
+async def poll_and_notify(bot: Bot, chat_id: int):
+    """Scrape new jobs, apply keyword filter, push matches to Telegram."""
+    logger.info("[Scheduler] Scraping Secret Tel Aviv Jobs...")
     try:
         jobs = fetch_new_jobs()
     except Exception as e:
-        logger.error(f"[Scheduler] RSS fetch failed: {e}")
+        logger.error(f"[Scheduler] Scrape failed: {e}")
         return
 
-    sent = 0
-    for job in jobs:
-        try:
-            result = score_job(job)
-        except RuntimeError as e:
-            # Daily token cap hit
-            await bot.send_message(chat_id=chat_id, text=f"⚠️ {e}")
-            return
-        except Exception as e:
-            logger.error(f"[Scheduler] Scoring failed for {job.url}: {e}")
-            continue
+    relevant = [j for j in jobs if _is_relevant(j.title)]
+    logger.info(f"[Scheduler] {len(relevant)} relevant out of {len(jobs)} new jobs.")
 
-        if result.get("send"):
-            msg = format_job_alert(job, result)
-            await bot.send_message(chat_id=chat_id, text=msg, parse_mode="Markdown")
-            sent += 1
+    if not relevant:
+        return
 
-    logger.info(f"[Scheduler] Sent {sent} job alerts out of {len(jobs)} new jobs.")
+    await bot.send_message(
+        chat_id=chat_id,
+        text=f"🔎 *{len(relevant)} new job{'s' if len(relevant) > 1 else ''} found*",
+        parse_mode="Markdown",
+    )
+
+    for job in relevant:
+        await bot.send_message(
+            chat_id=chat_id,
+            text=_format_job_alert(job),
+            parse_mode="Markdown",
+        )
 
 
 async def send_follow_up_reminders(bot: Bot, chat_id: int):
@@ -56,19 +93,15 @@ async def send_follow_up_reminders(bot: Bot, chat_id: int):
 
 
 def build_scheduler(bot: Bot, chat_id: int) -> AsyncIOScheduler:
-    """
-    Create and configure the APScheduler instance.
-    Call scheduler.start() after the bot application is running.
-    """
     init_db()
     scheduler = AsyncIOScheduler(timezone="Asia/Jerusalem")
 
-    # Poll RSS every N hours — fire immediately on startup, then on interval
+    # Scrape every 24h — fire immediately on startup
     scheduler.add_job(
-        poll_rss_and_notify,
+        poll_and_notify,
         trigger=IntervalTrigger(hours=RSS_POLL_INTERVAL_HOURS),
         args=[bot, chat_id],
-        id="rss_poll",
+        id="job_poll",
         replace_existing=True,
         next_run_time=datetime.now(),
     )
