@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
@@ -62,13 +63,14 @@ def build_scheduler(bot: Bot, chat_id: int) -> AsyncIOScheduler:
     init_db()
     scheduler = AsyncIOScheduler(timezone="Asia/Jerusalem")
 
-    # Poll RSS every N hours
+    # Poll RSS every N hours — fire immediately on startup, then on interval
     scheduler.add_job(
         poll_rss_and_notify,
         trigger=IntervalTrigger(hours=RSS_POLL_INTERVAL_HOURS),
         args=[bot, chat_id],
         id="rss_poll",
         replace_existing=True,
+        next_run_time=datetime.now(),
     )
 
     # Follow-up reminders daily at 9am Israel time

@@ -36,7 +36,7 @@ def init_db():
 
             CREATE TABLE IF NOT EXISTS token_usage (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                date TEXT NOT NULL,
+                date TEXT UNIQUE NOT NULL,
                 tokens_used INTEGER NOT NULL DEFAULT 0
             );
         """)
