@@ -1,7 +1,7 @@
 import sqlite3
 from datetime import datetime
 
-DB_PATH = "job_hunt.db"
+DB_PATH = "tasq_agent.db"
 
 
 def get_connection():
@@ -11,7 +11,7 @@ def get_connection():
 
 
 def init_db():
-    """Create tables if they don't exist."""
+    """Create all tables if they don't exist."""
     with get_connection() as conn:
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS seen_jobs (
@@ -42,7 +42,7 @@ def init_db():
         """)
 
 
-# --- Seen jobs (dedup for RSS) ---
+# --- Seen jobs (dedup) ---
 
 def is_job_seen(url: str) -> bool:
     with get_connection() as conn:
@@ -81,7 +81,6 @@ def get_all_applications():
 
 
 def get_stale_applications(days: int):
-    """Return applications with no update in `days` days."""
     with get_connection() as conn:
         return conn.execute(
             """SELECT * FROM applications

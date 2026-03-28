@@ -1,123 +1,96 @@
-# Job Hunt Agent — Project Context
+# Tasq Agent — Project Context
 
 ## What this is
-An autonomous job hunting agent delivered via Telegram bot.
-Built by @gavriale — Backend Engineer who just relocated to Israel.
+A modular autonomous agent platform delivered via Telegram bot.
+Built by @gavriale — Backend Engineer based in Israel.
 
-The bot does two things:
-1. **Proactively** polls Indeed RSS + Secret Tel Aviv Jobs every 3 hours, scores relevance via Claude, and pushes only matching jobs to Telegram
-2. **Reactively** — user pastes any job URL into Telegram, bot fetches the page, Claude extracts and scores it, returns a decision-ready summary
-
----
-
-## Candidate Profile
-- 4 years Backend Software Engineer
-- Strong interest in AI/ML engineering roles
-- BSc Computer Science, Open University Israel
-- Recently relocated to Israel, looking for jobs in Tel Aviv area
-- Open to: Backend Engineer, Full Stack, AI Engineer, Platform Engineer
-- Not interested in: Frontend-only, QA, DevOps-only roles
-
----
-
-## Job Sources
-
-| Source | Method |
-|---|---|
-| Secret Tel Aviv Jobs | RSS feed polled every 3 hours (`https://jobs.secrettelaviv.com/feed/`) |
-| RemoteOK | RSS feeds polled every 3 hours (backend, python, AI categories) |
-| Any job URL | User pastes link into Telegram → bot fetches → Claude enriches |
-
-### Notes on sources
-- **LinkedIn RSS** — killed by LinkedIn, no longer works
-- **Indeed RSS** — blocked (403/404), no longer accessible
-- **Secret Tel Aviv** — live WordPress RSS, updated hourly, English-speaking Israel market
-- **RemoteOK** — live RSS, remote roles worldwide; Claude's relevance scorer filters for fit
-
----
-
-## What "Enrich" means
-When user pastes a job URL, the bot:
-1. Fetches the page content
-2. Sends it to Claude with the candidate profile
-3. Claude returns a structured Telegram message:
-
-```
-🏢 Company: <name>
-💼 Role: <title>
-📍 Location: <location + remote/hybrid/onsite>
-💰 Salary: <if listed, else "Not listed">
-
-✅ Fit Score: X/10
-Why: <2-3 sentence reasoning against candidate profile>
-
-⚠️  Watch out: <any red flags, overqualification, missing skills>
-
-🎯 Recommended: Apply / Skip / Maybe
-
-Reply /track to log this application
-Reply /prep <company> to generate interview prep
-```
+Each module is self-contained and handles a specific domain (jobs, cars, apartments, etc.).
+The core layer wires everything together — one bot, one scheduler, one DB.
 
 ---
 
 ## Architecture
 
 ```
-job-hunt-agent/
-├── bot/
-│   ├── main.py              # Telegram bot entry point + command registration
-│   ├── handlers.py          # /start, /pipeline, /prep, /quiz, URL paste handler
-│   └── scheduler.py         # APScheduler — polls RSS every 3 hours
-├── sources/
-│   ├── rss_feeds.py         # Fetches + parses Indeed + Secret Tel Aviv RSS feeds
-│   └── link_enricher.py     # Fetches job URL, sends to Claude, returns summary
-├── agent/
-│   ├── relevance.py         # Claude scores job fit against candidate profile
-│   └── prep.py              # Claude generates interview prep plan + quiz questions
-├── db/
-│   └── database.py          # SQLite — seen jobs (dedup) + application tracking
-├── config.py                # Loads .env, defines CANDIDATE_PROFILE + constants
+tasq-agent/
+├── modules/
+│   ├── jobs/
+│   │   ├── scrapers/
+│   │   │   └── linkedin.py       # Scrapes LinkedIn Israel job searches
+│   │   ├── agent/
+│   │   │   ├── enricher.py       # Claude analysis for pasted job URLs
+│   │   │   └── relevance.py      # Claude scoring (unused in proactive flow)
+│   │   ├── handlers.py           # Telegram handlers — exposes register_handlers(app)
+│   │   └── scheduler.py          # Scheduled tasks — exposes register_jobs(scheduler, bot, chat_id)
+│   ├── cars/                     # Placeholder — not yet implemented
+│   │   ├── scrapers/
+│   │   ├── agent/
+│   │   ├── handlers.py
+│   │   └── scheduler.py
+│   └── apartments/               # Placeholder — not yet implemented
+│       └── .gitkeep
+├── core/
+│   ├── db/
+│   │   └── database.py           # Shared SQLite — seen items, applications, token usage
+│   ├── bot/
+│   │   └── main.py               # Single entry point — auto-registers all module handlers
+│   ├── scheduler.py              # Master scheduler — imports each module's register_jobs()
+│   └── config.py                 # Shared config, env vars, candidate profile
+├── CLAUDE.md
 ├── requirements.txt
-├── .env.example
-├── CLAUDE.md                # This file — always read before doing anything
-└── README.md
+└── .env
 ```
 
 ---
 
-## Tech Stack
-- `python-telegram-bot==20.7` — Telegram bot framework
-- `requests` — HTTP fetching for RSS + job URLs
-- `beautifulsoup4` — HTML parsing for job page content
-- `feedparser` — RSS feed parsing
-- `APScheduler==3.10.4` — scheduled RSS polling
-- `anthropic` — Claude API for relevance scoring + enrichment + prep
-- `SQLite` — built into Python, no install needed
-- `python-dotenv` — .env loading
+## Architecture Rules
+- Each module in `modules/` is fully self-contained
+- Modules only import from `core/` — never from each other
+- Adding a new module = create folder in `modules/`, implement `register_handlers(app)` and `register_jobs(scheduler, bot, chat_id)`, uncomment in `core/bot/main.py` and `core/scheduler.py`
+- Deleting a module = delete its folder + comment out its lines in core — nothing else breaks
 
 ---
 
-## Telegram Bot Commands
+## Candidate Profile (Jobs Module)
+- 4 years Backend Software Engineer
+- Languages: Java, Python, C#, TypeScript
+- Frameworks: Spring Boot, FastAPI, .NET Core, Angular
+- Databases: PostgreSQL, MySQL, Redis
+- Cloud: AWS (basic), Docker, Kafka (basic), Azure Service Bus
+- Target: Mid/Senior Backend, Full Stack, Platform Engineer in Israel (Tel Aviv area)
+- Exclude: Principal/Staff, Embedded, C++, DevOps-only, Frontend-only, QA, ML Research
+
+---
+
+## How the Jobs Module Works
+
+### Proactive (every 24h)
+1. Scrapes 5 LinkedIn Israel searches (backend, python, software engineer, full stack, java)
+2. Deduplicates via `seen_jobs` table
+3. Keyword filter (no Claude API) — pushes matching jobs to Telegram
+4. Format: title, company, location, link
+
+### Reactive (user pastes URL)
+1. Fetches the job page
+2. Claude Haiku analyzes against candidate profile
+3. Returns structured summary: company, role, location, salary, fit score, recommendation
+
+---
+
+## Telegram Commands
 | Command | What it does |
 |---|---|
-| (paste any URL) | Enriches the job URL and scores fit |
-| `/start` | Welcome message + instructions |
+| (paste any job URL) | Full Claude analysis + fit score |
+| `/start` | Welcome + instructions |
 | `/track` | Log current job as applied |
-| `/pipeline` | Show all tracked applications with status |
-| `/prep <company>` | Generate full interview prep plan for a company |
-| `/quiz` | Claude quizzes you — DS&A + system design questions |
+| `/pipeline` | View all tracked applications |
 
 ---
 
-## Git Flow
-- `main` — stable, working code only
-- `dev` — integration branch, all features merge here first
-- `feature/phase1-scanner` — current branch
-- `feature/phase2-tracker`
-- `feature/phase3-interview-prep`
-
-**Always commit to feature branch → PR to dev → merge to main when stable.**
+## Running the Bot
+```bash
+python -m core.bot.main
+```
 
 ---
 
@@ -125,41 +98,19 @@ job-hunt-agent/
 ```
 TELEGRAM_BOT_TOKEN=
 ANTHROPIC_API_KEY=
+TELEGRAM_CHAT_ID=
 MAX_DAILY_TOKENS=50000
 ```
 
 ---
 
-## Safety Rules
-- Never commit `.env` — it's in `.gitignore`
-- All Claude API calls must check + increment a daily token counter against `MAX_DAILY_TOKENS`
-- If daily token cap is hit, stop making Claude API calls and notify user via Telegram
-- SQLite deduplication — never send the same job URL twice
+## Git Flow
+- Single branch: `main`
+- Push directly to main
 
 ---
 
-## Build Order
-
-### Phase 1 — Core scanner (START HERE)
-Build in this exact order, one file at a time:
-1. `requirements.txt`
-2. `config.py`
-3. `db/database.py`
-4. `sources/rss_linkedin.py`
-5. `sources/link_enricher.py`
-6. `agent/relevance.py`
-7. `bot/scheduler.py`
-8. `bot/handlers.py`
-9. `bot/main.py`
-
-After each file: run it if possible, fix any errors, then move to the next.
-
-### Phase 2 — Application tracker
-- `/track` saves job to SQLite with status "applied"
-- `/pipeline` renders a clean list grouped by status
-- Auto reminder after 7 days of no response: "Follow up on X at Y?"
-
-### Phase 3 — Interview prep
-- `/prep <company>` — Claude generates: company research, likely questions, suggested answers, things to read
-- Daily tip pushed at 9am Israel time (Asia/Jerusalem timezone)
-- `/quiz` — Claude generates 3 questions (1 DS&A, 1 system design, 1 behavioral), user answers, Claude gives feedback
+## Safety Rules
+- Never commit `.env`
+- All Claude API calls check + increment daily token counter against `MAX_DAILY_TOKENS`
+- SQLite deduplication — never send the same item twice per module

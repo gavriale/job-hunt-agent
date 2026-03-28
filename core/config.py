@@ -27,7 +27,6 @@ Exclude: C/C++, embedded systems, Linux kernel, drivers, heavy DevOps/infrastruc
          Data Science, ML research, Principal/Staff/Distinguished titles, frontend-only, QA
 """
 
-
-RSS_POLL_INTERVAL_HOURS = 24
+POLL_INTERVAL_HOURS = 24
 DAILY_TIP_HOUR = 9  # 9am Israel time (Asia/Jerusalem)
 FOLLOW_UP_DAYS = 7

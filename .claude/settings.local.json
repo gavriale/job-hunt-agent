@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python db/database.py)",
+      "Bash(python sources/rss_linkedin.py)",
+      "Bash(pip install:*)",
+      "Bash(python -m sources.rss_linkedin)",
+      "Bash(python -c \"from sources.link_enricher import enrich_job_url; print\\(''Import OK''\\)\")",
+      "Bash(python -m agent.relevance)",
+      "Bash(python -c \"from agent.relevance import score_job, format_job_alert; print\\(''Import OK''\\)\")",
+      "Bash(python -c \"from bot.scheduler import build_scheduler; print\\(''Import OK''\\)\")",
+      "Bash(python -c \"from bot.handlers import cmd_start, cmd_track, cmd_pipeline, cmd_prep, cmd_quiz, handle_url; print\\(''Import OK''\\)\")",
+      "Bash(python -c \"from bot.main import main; print\\(''Import OK''\\)\")",
+      "Bash(python -m bot.main)",
+      "Bash(curl -s -i \"https://jobs.secrettelaviv.com/\")",
+      "Bash(curl -s -i \"https://jobs.secrettelaviv.com/feed\")",
+      "Bash(curl -s -i \"https://jobs.secrettelaviv.com/rss\")",
+      "Bash(curl -s -i \"https://jobs.secrettelaviv.com/rss.xml\")",
+      "Bash(curl -s -i -L \"https://jobs.secrettelaviv.com/feed\")",
+      "Bash(curl -s \"https://jobs.secrettelaviv.com/\")",
+      "Bash(python -m sources.rss_feeds)",
+      "Bash(python -c \":*)",
+      "Bash(taskkill /F /IM python.exe)",
+      "Bash(wmic process:*)",
+      "Bash(kill 570 644 653)",
+      "Bash(xargs kill:*)",
+      "Bash(curl -s -L -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36\" \"https://www.geektime.co.il/jobs/\" -w \"\\\\n\\\\nHTTP Status: %{http_code}\\\\n\")",
+      "Bash(curl -s -L -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36\" \"https://www.comeet.com/jobs/israel\" -w \"\\\\n\\\\n==== HTTP Status: %{http_code} ====\\\\n\")",
+      "Bash(curl -s -L -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36\" \"https://www.comeet.com/jobs\")",
+      "Bash(curl -s -L -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36\" \"https://www.comeet.com/jobs/israel\")",
+      "Bash(curl -s -L -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36\" https://www.comeet.com/jobs 2)",
+      "Read(//tmp/**)",
+      "Bash(curl -s -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36\" -H \"Accept: text/html,application/xhtml+xml\" \"https://www.geektime.co.il/jobs/\" -w \"\\\\n\\\\n==== HTTP Status: %{http_code} ====\\\\n\")",
+      "Bash(curl -s -i -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36\" \"https://www.geektime.co.il/jobs/\")",
+      "Bash(curl -s -L -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36\" \"https://www.geektime.co.il/jobs_in_carbonite/\" -w \"\\\\n\\\\n==== HTTP Status: %{http_code} ====\\\\n\")",
+      "Bash(curl -s -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36\" \"https://www.geektime.co.il/careers\")",
+      "Bash(curl:*)",
+      "Bash(python -c \"from core.bot.main import main; print\\(''Import OK''\\)\")"
+    ]
+  }
+}

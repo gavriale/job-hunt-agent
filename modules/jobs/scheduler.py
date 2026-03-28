@@ -5,13 +5,12 @@ from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
 from telegram import Bot
 
-from config import RSS_POLL_INTERVAL_HOURS, DAILY_TIP_HOUR, FOLLOW_UP_DAYS
-from db.database import init_db, get_stale_applications
-from sources.rss_feeds import fetch_new_jobs
+from core.config import POLL_INTERVAL_HOURS, DAILY_TIP_HOUR, FOLLOW_UP_DAYS
+from core.db.database import get_stale_applications
+from modules.jobs.scrapers.linkedin import fetch_new_jobs
 
 logger = logging.getLogger(__name__)
 
-# Titles that are clearly relevant
 INCLUDE_KEYWORDS = [
     "backend", "back-end", "back end",
     "full stack", "fullstack", "full-stack",
@@ -23,15 +22,11 @@ INCLUDE_KEYWORDS = [
     "server side", "server-side",
 ]
 
-# Titles that disqualify immediately
 EXCLUDE_KEYWORDS = [
-    # Wrong seniority
     "principal", "staff engineer", "distinguished", "vp ", "director",
-    # Wrong domain
     "embedded", "firmware", "kernel", "driver", "c++ ", "c/c++",
     "data scientist", "ml engineer", "machine learning engineer", "research engineer",
     "devops engineer", "sre ", "site reliability", "infrastructure engineer",
-    # Non-engineering
     "frontend", "front-end", "front end",
     "qa ", "quality assurance", "test engineer", "automation engineer",
     "designer", "ux ", "ui/ux",
@@ -48,7 +43,7 @@ def _is_relevant(title: str) -> bool:
     return any(kw in t for kw in INCLUDE_KEYWORDS)
 
 
-def _format_job_alert(job) -> str:
+def _format_alert(job) -> str:
     return (
         f"💼 *{job.title}*\n"
         f"🏢 {job.company}\n"
@@ -58,17 +53,16 @@ def _format_job_alert(job) -> str:
     )
 
 
-async def poll_and_notify(bot: Bot, chat_id: int):
-    """Scrape new jobs, apply keyword filter, push matches to Telegram."""
-    logger.info("[Scheduler] Scraping Secret Tel Aviv Jobs...")
+async def _poll_and_notify(bot: Bot, chat_id: int):
+    logger.info("[Jobs] Scraping LinkedIn Israel...")
     try:
         jobs = fetch_new_jobs()
     except Exception as e:
-        logger.error(f"[Scheduler] Scrape failed: {e}")
+        logger.error(f"[Jobs] Scrape failed: {e}")
         return
 
     relevant = [j for j in jobs if _is_relevant(j.title)]
-    logger.info(f"[Scheduler] {len(relevant)} relevant out of {len(jobs)} new jobs.")
+    logger.info(f"[Jobs] {len(relevant)} relevant out of {len(jobs)} new jobs.")
 
     if not relevant:
         return
@@ -78,49 +72,38 @@ async def poll_and_notify(bot: Bot, chat_id: int):
         text=f"🔎 *{len(relevant)} new job{'s' if len(relevant) > 1 else ''} found*",
         parse_mode="Markdown",
     )
-
     for job in relevant:
+        await bot.send_message(chat_id=chat_id, text=_format_alert(job), parse_mode="Markdown")
+
+
+async def _send_follow_up_reminders(bot: Bot, chat_id: int):
+    for app in get_stale_applications(days=FOLLOW_UP_DAYS):
         await bot.send_message(
             chat_id=chat_id,
-            text=_format_job_alert(job),
+            text=(
+                f"⏰ *Follow-up reminder*\n\n"
+                f"You applied to *{app['title']}* at *{app['company']}* "
+                f"{FOLLOW_UP_DAYS} days ago with no update.\n\n"
+                f"Consider sending a follow-up email!"
+            ),
             parse_mode="Markdown",
         )
 
 
-async def send_follow_up_reminders(bot: Bot, chat_id: int):
-    """Nudge user about applications with no update in FOLLOW_UP_DAYS days."""
-    stale = get_stale_applications(days=FOLLOW_UP_DAYS)
-    for app in stale:
-        msg = (
-            f"⏰ *Follow-up reminder*\n\n"
-            f"You applied to *{app['title']}* at *{app['company']}* "
-            f"{FOLLOW_UP_DAYS} days ago with no update.\n\n"
-            f"Consider sending a follow-up email!"
-        )
-        await bot.send_message(chat_id=chat_id, text=msg, parse_mode="Markdown")
-
-
-def build_scheduler(bot: Bot, chat_id: int) -> AsyncIOScheduler:
-    init_db()
-    scheduler = AsyncIOScheduler(timezone="Asia/Jerusalem")
-
-    # Scrape every 24h — fire immediately on startup
+def register_jobs(scheduler: AsyncIOScheduler, bot: Bot, chat_id: int):
+    """Register all jobs-module scheduled tasks onto the shared scheduler."""
     scheduler.add_job(
-        poll_and_notify,
-        trigger=IntervalTrigger(hours=RSS_POLL_INTERVAL_HOURS),
+        _poll_and_notify,
+        trigger=IntervalTrigger(hours=POLL_INTERVAL_HOURS),
         args=[bot, chat_id],
-        id="job_poll",
+        id="jobs_poll",
         replace_existing=True,
         next_run_time=datetime.now(),
     )
-
-    # Follow-up reminders daily at 9am Israel time
     scheduler.add_job(
-        send_follow_up_reminders,
+        _send_follow_up_reminders,
         trigger=CronTrigger(hour=DAILY_TIP_HOUR, minute=0, timezone="Asia/Jerusalem"),
         args=[bot, chat_id],
-        id="follow_up_reminders",
+        id="jobs_follow_up",
         replace_existing=True,
     )
-
-    return scheduler
